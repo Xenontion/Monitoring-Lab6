@@ -1,0 +1,69 @@
+services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: always
+    ports:
+      - "9000:9000"
+      - "9443:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - lab6-net
+
+  eureka-server:
+    build: ./eureka-server
+    container_name: eureka-server
+    restart: always
+    ports:
+      - "8761:8761"
+    networks:
+      - lab6-net
+
+  order-service:
+    build: ./app-service
+    container_name: order-service
+    restart: always
+    environment:
+      - APP_NAME=ORDER-SERVICE
+      - APP_PORT=8081
+      - EUREKA_URL=http://eureka-server:8761
+    ports:
+      - "8081:8081"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    depends_on:
+      - eureka-server
+    networks:
+      - lab6-net
+
+  unstable-service:
+    build: ./unstable-service
+    container_name: unstable-service
+    restart: on-failure:5
+    environment:
+      - APP_NAME=UNSTABLE-WORKER
+      - APP_PORT=8085
+      - EUREKA_URL=http://eureka-server:8761
+    ports:
+      - "8085:8085"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.8'
+          memory: 128M
+    depends_on:
+      - eureka-server
+    networks:
+      - lab6-net
+
+volumes:
+  portainer_data:
+
+networks:
+  lab6-net:
+    driver: bridge
